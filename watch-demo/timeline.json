@@ -1,0 +1,1 @@
+{"duration": 11.2, "film": 10.0, "pills": ["crystal_dial", "escapement", "case_flank", "crown_winding", "exploded", "hero"], "script": [{"t": 2.6, "act": "escapement"}, {"t": 5.0, "act": "exploded"}, {"t": 6.9, "act": "assemble"}, {"t": 7.9, "act": "hero"}]}

@@ -1,0 +1,6 @@
+Read the job description and this checklist. Build the [Mechanical Watch] and loop:
+1. Render a still at 1600×900 posed like the reference.
+2. Stack the reference, your still and the approved still side by side, plus a thumbnail of the same stack 900 px wide.
+3. Grade every checklist line yes, partial or no, one line each.
+4. Fix the no's, then the partials.
+Stop after round 2 and show me the stack and the grades. Wait for my notes before round 3.

@@ -1,0 +1,13 @@
+{
+  "duration": 21.2,
+  "script": [
+    {"t": 3.0, "act": "crystal_dial"},
+    {"t": 5.7, "act": "escapement"},
+    {"t": 8.2, "act": "case_flank"},
+    {"t": 10.8, "act": "crown_winding"},
+    {"t": 13.3, "act": "exploded"},
+    {"t": 16.5, "act": "assemble"},
+    {"t": 17.7, "act": "hero"}
+  ]
+}
+

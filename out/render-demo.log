@@ -1,0 +1,12 @@
+frame 0/600  3 s
+frame 60/600  68 s
+frame 120/600  134 s
+frame 180/600  202 s
+frame 240/600  269 s
+frame 300/600  335 s
+frame 360/600  397 s
+frame 420/600  457 s
+frame 480/600  522 s
+frame 540/600  587 s
+→ out/frames-demo
+652.4 s

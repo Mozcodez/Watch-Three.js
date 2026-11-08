@@ -1,0 +1,2 @@
+Render the film frame by frame: render(t) is a pure function of time. Capture at 1600×900 with a device pixel ratio of 2.4, downscale to 1920×1080 at 60 fps with lanczos, H.264, yuv420p, faststart.
+Score it in code on the same script: a music bed for the whole film, a quiet click per button, a short accent on every part that moves. Master to -14 LUFS. For a short version played faster, score the scene's script and time-stretch the sound by the same factor.

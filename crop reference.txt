@@ -1,0 +1,1 @@
+Crop the reference and your still to the object's bounding box. Count the share of dark pixels (luma under 80). Your share has to reach 0.8 of the reference's. Raise it by breaking white surfaces into separate plates with gaps over the mechanism. Adding dots doesn't count.
