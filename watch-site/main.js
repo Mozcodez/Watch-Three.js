@@ -9,10 +9,88 @@
 //     (watch-film.mp4, watch-demo.mp4 and a poster .jpg each); the 3D view stops drawing while it is open
 // The movement runs on the page's own clock (performance.now), so this page is live, not frame-steppable like the films.
 import {runSim} from 'cutaway-kit/runtime.js';
+import {SHIFT} from 'cutaway-kit/../green/look.js';
 import {makeWatchScene} from '../watch-shared/sim.js';
 import {ACTS, LABELS, makeCams, OPENS} from '../watch-shared/tour.js';
 
 const D2R = Math.PI / 180;
+
+// ---------------------------------------------------------------- loading screen and fallback
+// style.css shows a loading screen from the first paint (the first frame compiles every shader, which takes seconds
+// on a laptop GPU and longer on a phone); the first drawn frame lifts it. If the 3D view can't start (no WebGL, a
+// lost context, a script error before the first frame) the page offers the film instead of a blank screen.
+const ROOT = document.documentElement;
+addEventListener('simframe', () => ROOT.classList.add('ready'));
+const fail = (why) => {
+  if (ROOT.classList.contains('ready') || ROOT.classList.contains('failed')) return;
+  ROOT.classList.add('failed');
+  console.error('watch-site: 3D view failed', why);
+  const d = document.createElement('div');
+  d.className = 'fallback';
+  d.innerHTML = `<div class="fb-box"><h1>Mechanical Watch, Taken Apart</h1>
+    <p>This browser couldn't start the live 3D view, so here is the film of it instead.</p>
+    <video controls playsinline preload="metadata" poster="videos/watch-film.jpg" src="videos/watch-film.mp4"></video>
+    <p class="fb-small">For the interactive version, open this page in a recent Chrome, Edge, Safari or Firefox with hardware acceleration on.</p></div>`;
+  document.body.appendChild(d);
+};
+addEventListener('error', (e) => fail(e.error ?? e.message));
+addEventListener('unhandledrejection', (e) => fail(e.reason));
+if (!document.createElement('canvas').getContext('webgl2')) fail('no WebGL2');
+
+// ---------------------------------------------------------------- small screens
+// Below ~0.7 of the 1600 x 900 page (phones, small tablets, narrow windows) the page drops the film's fixed layout and
+// lays itself out at the screen's own size (style.css, html.compact): the 3D view fills the screen and the watch is
+// framed in the band left between the title and pills above and the caption, cards and footer below.
+const TOUCH = matchMedia('(pointer: coarse)').matches;
+let compact = false;
+const setVar = (k, v) => ROOT.style.setProperty(k, `${Math.round(v)}px`);
+const rect = (q) => {
+  const e = document.querySelector(`#app .vp ${q}`);
+  const r = e?.getBoundingClientRect();
+  return r && r.height > 0 ? r : null;
+};
+// where the film's 1600 x 900 page sits inside a wider or taller page (the labels are laid out in its coordinates)
+const OFF = {x: 0, y: 0};
+const layout = () => {
+  const W = innerWidth;
+  const H = innerHeight;
+  compact = Math.min(W / 1600, H / 900) < 0.7;
+  ROOT.classList.toggle('compact', compact);
+  ROOT.classList.toggle('short', compact && H < 520);
+  ROOT.classList.toggle('fill', !compact);
+  if (!compact) {
+    // a window wider (or taller) than 16:9 gets a wider (or taller) page instead of an empty band at the side: the
+    // film's 1600 x 900 page sits in its middle, the cards keep to the right edge and the footer to the bottom
+    const w = Math.max(1600, Math.round((900 * W) / H));
+    const h = Math.max(900, Math.round((1600 * H) / W));
+    OFF.x = (w - 1600) / 2;
+    OFF.y = (h - 900) / 2;
+    setVar('--vw', w);
+    setVar('--vh', h);
+    setVar('--dy', OFF.y);
+    return {w, h, scale: W / w, sx: SHIFT[0], sy: SHIFT[1] - 24, k: 1, f: 1};
+  }
+  OFF.x = OFF.y = 0;
+  setVar('--vw', W);
+  setVar('--vh', H);
+  document.getElementById('app').style.transform = 'none';
+  // the top stack: logo, title, pills, hint; the bottom stack: footer, cards, caption
+  const above = rect('.head') ?? rect('.logo');
+  setVar('--pt', (above?.bottom ?? 60) + 12);
+  const pills = rect('.pills');
+  setVar('--ht', (pills?.bottom ?? 120) + 8);
+  const foot = rect('.foot');
+  const cards = rect('.cards');
+  setVar('--nb', H - (cards?.top ?? foot?.top ?? H) + 8);
+  const top = Math.max(rect('.hint')?.bottom ?? 0, pills?.bottom ?? 0, rect('.films')?.bottom ?? 0) + 6;
+  const bottom = Math.min(rect('.nav')?.top ?? H, cards?.top ?? H, foot?.top ?? H) - 6;
+  // the watch fills the band as it fills the film's 1070 x 600 3D window
+  const bw = Math.max(160, W - 24);
+  const bh = Math.max(140, bottom - top);
+  const f = Math.min(bw / 1070, bh / 600);
+  return {w: W, h: H, scale: 1, sx: 0, sy: (top + Math.max(top + bh, bottom)) / 2 - H / 2, k: H / (900 * f), f};
+};
+
 const smoother = (x) => {
   const u = Math.min(1, Math.max(0, x));
   return u * u * u * (u * (u * 6 - 15) + 10);
@@ -44,17 +122,24 @@ const CSS = `
 #app canvas.drag{cursor:grabbing}`;
 
 runSim({duration: 3600, fps: 60, theme: 'light', hud: {enabled: false, title: 'watch-site', subtitle: ''}, director: {enabled: false}, watermark: ''}, async ({canvas, capture}) => {
-  const {w, st, holder, C, A, ui, labels, resize, frame} = makeWatchScene({canvas, capture, pills: PILLS});
+  const {w, st, holder, C, A, ui, labels, resize, frame} = makeWatchScene({canvas, capture, pills: PILLS, layout});
   const CAM = makeCams({...A, asm: 99});
+  // the labels place themselves in the 1600 x 900 page's coordinates: they see the screen shifted back into it, and
+  // their boxes and leader lines are shifted out again in render()
+  const project = st.project;
+  st.project = (p) => {
+    const r = project(p);
+    return r && [r[0] - OFF.x, r[1] - OFF.y];
+  };
+  canvas.addEventListener('webglcontextlost', () => fail('WebGL context lost'));
+  // the cards' traces stretch to a narrow card's width on a small screen
+  ui.root.querySelectorAll('.card svg').forEach((s) => s.setAttribute('preserveAspectRatio', 'none'));
   // ---------------------------------------------------------------- adaptive quality
   // The page starts with the film's full studio look and steps down a tier at a time while it runs under 24 fps
   // (measured over 1 s windows), never back up, so it settles instead of flickering between looks. On this project's
   // Intel UHD 600 the full look runs at ~2 fps and the last tier at ~20.
   let pr = 1;
-  const doResize = () => {
-    resize();
-    if (pr !== 1) st.resize(1600, 900, Math.min(devicePixelRatio || 1, 2) * pr);
-  };
+  const doResize = () => resize(pr);
   const cheapGlass = () => {
     for (const [m, op] of [[w.M.glass, 0.08], [w.M.sapphire, 0.06], [w.M.jade, 0.75]]) {
       m.transmission = 0;
@@ -74,6 +159,9 @@ runSim({duration: 3600, fps: 60, theme: 'light', hud: {enabled: false, title: 'w
     },
   ];
   let tier = 0;
+  // phones and tablets start two tiers down (no AO, no MSAA, the quarter-size floor shadow): their GPUs can't hold
+  // the full look, and the first frame (which compiles every shader) comes up much sooner without it
+  if (!capture && (TOUCH || compact)) while (tier < 2) TIERS[tier++]();
   let win = {t: performance.now(), n: 0};
   const adapt = () => {
     if (capture || tier >= TIERS.length) return;
@@ -141,22 +229,39 @@ runSim({duration: 3600, fps: 60, theme: 'light', hud: {enabled: false, title: 'w
       this.zoom = 1;
     },
   };
-  let drag = null;
+  // one pointer turns the camera; two (a pinch on a touch screen) zoom
+  const ptrs = new Map();
+  let pinch = 0;
+  const spread = () => {
+    const [a, b] = [...ptrs.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
   canvas.style.pointerEvents = 'auto';
   canvas.addEventListener('pointerdown', (e) => {
-    drag = {x: e.clientX, y: e.clientY};
+    ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    if (ptrs.size === 2) pinch = spread();
     canvas.classList.add('drag');
     canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    view.az -= (e.clientX - drag.x) * 0.3;
-    view.el = Math.max(-25, Math.min(45, view.el + (e.clientY - drag.y) * 0.2));
-    drag = {x: e.clientX, y: e.clientY};
+    const p = ptrs.get(e.pointerId);
+    if (!p) return;
+    if (ptrs.size === 1) {
+      view.az -= (e.clientX - p.x) * 0.3;
+      view.el = Math.max(-25, Math.min(45, view.el + (e.clientY - p.y) * 0.2));
+    }
+    p.x = e.clientX;
+    p.y = e.clientY;
+    if (ptrs.size === 2) {
+      const s = spread();
+      if (pinch > 0 && s > 0) view.zoom = Math.max(0.55, Math.min(1.7, (view.zoom * pinch) / s));
+      pinch = s;
+    }
   });
-  const end = () => {
-    drag = null;
-    canvas.classList.remove('drag');
+  const end = (e) => {
+    ptrs.delete(e.pointerId);
+    pinch = 0;
+    if (!ptrs.size) canvas.classList.remove('drag');
   };
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
@@ -171,7 +276,7 @@ runSim({duration: 3600, fps: 60, theme: 'light', hud: {enabled: false, title: 'w
   document.head.appendChild(style);
   const hint = document.createElement('div');
   hint.className = 'hint';
-  hint.textContent = 'Press a part to open it · drag to turn · scroll to zoom · double-click to reset';
+  hint.textContent = TOUCH ? 'Tap a part to open it · drag to turn · pinch to zoom' : 'Press a part to open it · drag to turn · scroll to zoom · double-click to reset';
   ui.root.appendChild(hint);
 
   // ---------------------------------------------------------------- the films
@@ -281,7 +386,8 @@ runSim({duration: 3600, fps: 60, theme: 'light', hud: {enabled: false, title: 'w
         cards: [{v: '4.0', wave}, {v: Math.round(reserve * 100), bar: reserve}, {bars: wheels}, {v: free ? '—' : Math.round(272 + 6 * Math.sin(now * 0.7)), bar: free ? 0 : 0.82 + 0.02 * Math.sin(now * 0.7)}],
         apart: Math.round(ao * 100),
         view: act ?? 'overview',
-        callouts: labels(act ? {set: LABELS[act], o: ss(0.5, 0.9, ao)} : {set: [], o: 0}),
+        // leader-line labels need the wide page; a small screen names the open part in the caption instead
+        callouts: compact ? [] : labels(act ? {set: LABELS[act], o: ss(0.5, 0.9, ao)} : {set: [], o: 0}).map((c) => ({...c, at: [c.at[0] + OFF.x, c.at[1] + OFF.y], label: [c.label[0] + OFF.x, c.label[1] + OFF.y]})),
         cursor: null,
       });
       return {};

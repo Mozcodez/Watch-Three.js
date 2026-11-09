@@ -1,0 +1,102 @@
+/* watch-site: the loading screen, the no-WebGL fallback and the small-screen layout (html.compact / html.short,
+   set by main.js). Inlined into the page's <head> by build.mjs, so the loading screen is up from the first paint. */
+
+/* ---------------------------------------------------------------- loading screen */
+html:not(.ready):not(.failed) body::before {
+  content: 'Loading the watch\2026';
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding-top: 92px;
+  font: 600 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: .2px; color: #64748b;
+  background:
+    radial-gradient(520px 360px at 0 0, rgba(22,179,100,.14), rgba(22,179,100,0) 70%),
+    radial-gradient(620px 420px at 100% 0, rgba(22,179,100,.12), rgba(22,179,100,0) 70%),
+    #fff;
+}
+html:not(.ready):not(.failed) body::after {
+  content: '';
+  position: fixed; left: 50%; top: 50%; z-index: 101;
+  width: 40px; height: 40px; margin: -36px 0 0 -20px; border-radius: 50%;
+  border: 3px solid #dcf7e8; border-top-color: #16b364;
+  animation: ws-spin .8s linear infinite;
+}
+@keyframes ws-spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------------- fallback (no WebGL) */
+html.failed #app { display: none; }
+html.failed, html.failed body { background: #fff; overflow: auto; height: auto; min-height: 100%; }
+.fallback {
+  min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px; font-family: 'Inter', system-ui, sans-serif; color: #0f172a;
+  background: radial-gradient(620px 420px at 100% 0, rgba(22,179,100,.12), rgba(22,179,100,0) 70%), #fff;
+}
+.fb-box { width: min(960px, 100%); }
+.fallback h1 { margin: 0 0 8px; font: 800 clamp(22px, 5vw, 34px)/1.1 'Inter', sans-serif; letter-spacing: -.6px; }
+.fallback p { margin: 0 0 16px; font: 500 15px/1.5 'Inter', sans-serif; color: #475569; }
+.fallback .fb-small { margin: 14px 0 0; font-size: 13px; color: #94a3b8; }
+.fallback video { display: block; width: 100%; aspect-ratio: 16/9; border-radius: 12px; background: #0f172a; }
+
+/* ---------------------------------------------------------------- every size */
+/* the page's white under the scaled 1600 x 900 page, so a window that isn't 16:9 has no grey band */
+html, html body { background: #fff; }
+#app canvas { touch-action: none; }
+.fm .box { max-height: calc(100dvh - 32px); }
+
+/* ---------------------------------------------------------------- small screens: the page at the screen's own size */
+html.compact #app { width: var(--vw, 100vw) !important; height: var(--vh, 100vh) !important; transform: none !important; }
+html.compact .vp svg.lines { width: 100%; height: 100%; }
+html.compact .vp .dots { width: 220px; height: 170px; }
+
+html.compact .vp .logo { left: 16px; top: calc(14px + env(safe-area-inset-top)); gap: 8px; font-size: 18px; }
+html.compact .vp .logo i { width: 24px; height: 24px; border-radius: 7px; }
+html.compact .vp .logo i:after { left: 6px; top: 6px; width: 12px; height: 12px; border-width: 2.5px; }
+html.compact .vp .lang { display: none; }
+html.compact .vp .films { right: 16px; top: calc(12px + env(safe-area-inset-top)); height: 30px; padding: 0 12px; font-size: 12.5px; }
+
+html.compact .vp .head { top: calc(52px + env(safe-area-inset-top)); padding: 0 16px; }
+html.compact .vp .head .ver { font-size: 14px; }
+html.compact .vp .head h1 { margin-top: 6px; font-size: clamp(19px, 5.4vw, 30px); letter-spacing: -.4px; }
+html.compact .vp .head .rule { width: 64px; height: 3px; margin-top: 8px; }
+html.compact .vp .head .date { display: none; }
+
+html.compact .vp .pills { top: var(--pt, 124px); flex-wrap: wrap; gap: 7px; padding: 0 12px; }
+html.compact .vp .pill { height: 32px; padding: 0 12px; gap: 6px; font-size: 12.5px; }
+
+html.compact .vp .hint { top: var(--ht, 200px); padding: 0 16px; font-size: 11px; line-height: 1.3; }
+
+/* the open part, named in a caption over the cards (the wide page's section list and leader-line labels) */
+html.compact .vp .nav { left: 16px; right: 16px; top: auto; bottom: var(--nb, 150px); width: auto; height: 38px; overflow: hidden; border: 0; text-align: center; }
+html.compact .vp .nav div { display: none; padding: 0; }
+html.compact .vp .nav div.on { display: block; font-size: 13.5px; }
+html.compact .vp .nav div.on:before { display: none; }
+html.compact .vp .nav { white-space: nowrap; text-overflow: ellipsis; }
+html.compact .vp .nav div.sub { display: inline; padding: 0; font-size: 11.5px; }
+html.compact .vp .nav div.sub + div.sub:before { content: ' \00b7  '; }
+
+/* the four cards in a row */
+html.compact .vp .cards { left: 12px; right: 12px; top: auto; bottom: calc(48px + env(safe-area-inset-bottom)); width: auto; flex-direction: row; align-items: stretch; gap: 8px; }
+html.compact .vp .card { flex: 1 1 0; min-width: 0; padding: 9px 10px; border-radius: 12px; }
+html.compact .vp .card .k { font-size: 9px; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.compact .vp .card .v { margin-top: 6px; font-size: 18px; white-space: nowrap; }
+html.compact .vp .card .v small { margin-left: 2px; font-size: 11px; }
+html.compact .vp .card svg { width: 100%; height: 22px; margin-top: 6px; }
+html.compact .vp .bar { height: 5px; margin-top: 8px; }
+html.compact .vp .servos { gap: 3px; margin: 6px 0 -14px; transform: scaleY(.7); transform-origin: 50% 100%; }
+
+html.compact .vp .foot { left: 16px; right: 16px; top: auto; bottom: calc(10px + env(safe-area-inset-bottom)); gap: 10px; }
+
+/* short screens (a phone on its side): title, cards and caption make way for the watch */
+html.short .vp .head, html.short .vp .cards, html.short .vp .nav, html.short .vp .hint { display: none; }
+html.short .vp .pills { flex-wrap: nowrap; overflow-x: auto; justify-content: safe center; pointer-events: auto; scrollbar-width: none; }
+html.short .vp .pills::-webkit-scrollbar { display: none; }
+html.short .vp .pill { flex: none; }
+
+/* ---------------------------------------------------------------- wide or tall windows: the page stretches to fit */
+html.fill #app { width: var(--vw, 1600px) !important; height: var(--vh, 900px) !important; }
+html.fill .vp svg.lines { width: 100%; height: 100%; }
+html.fill .vp .haze { background:
+  radial-gradient(520px 360px at 60px -40px, rgba(22,179,100,.16), rgba(22,179,100,0) 70%),
+  radial-gradient(620px 420px at 100% 20px, rgba(22,179,100,.14), rgba(22,179,100,0) 70%); }
+html.fill .vp .cards { left: auto; right: 40px; top: calc(290px + var(--dy, 0px)); }
+html.fill .vp .nav { top: calc(300px + var(--dy, 0px)); }
+html.fill .vp .foot { top: auto; bottom: 20px; }
+html.fill .vp .hint { top: auto; bottom: 46px; }

@@ -40,7 +40,7 @@ const PAGE = {
 
 /** The watch in its still pose on the green page: the holder (the turntable's pivot), the stage, the cameras' rest
  *  points A, the page with the given pills, labels, resize. Shared by the films and the interactive page. */
-export function makeWatchScene({canvas, capture, pills}) {
+export function makeWatchScene({canvas, capture, pills, layout}) {
   const app = document.getElementById('app');
   const w = buildWatch();
   w.pose({t: 0});
@@ -77,14 +77,19 @@ export function makeWatchScene({canvas, capture, pills}) {
   const acts = ACTS_UI.filter(([k]) => used.has(k));
   const ui = createConsole(app, {...PAGE, nav: [['overview', 'Overview'], ...acts], pills: acts});
   const labels = makeLabels(st, w.anchors);
-  const fit = () => (app.style.transform = `scale(${Math.min(innerWidth / 1600, innerHeight / 900)})`);
-  const resize = () => {
-    fit();
-    st.resize(1600, 900, capture ? devicePixelRatio || 1 : Math.min(devicePixelRatio || 1, 2));
+  // The page's layout: the film's fixed 1600 x 900 page scaled to fit, unless layout() (the site on a small screen)
+  // returns its own: {w, h} the page in CSS px, scale, the screen shift sx/sy that centres the watch, k the camera
+  // distance factor and f the size of the watch on screen relative to the 1600 x 900 page.
+  const FILM_LAYOUT = () => ({w: 1600, h: 900, scale: Math.min(innerWidth / 1600, innerHeight / 900), sx: SHIFT[0], sy: SHIFT[1] - 24, k: 1, f: 1});
+  const L = FILM_LAYOUT();
+  const resize = (prk = 1) => {
+    Object.assign(L, layout?.() ?? FILM_LAYOUT());
+    app.style.transform = `scale(${L.scale})`;
+    st.resize(L.w, L.h, (capture ? devicePixelRatio || 1 : Math.min(devicePixelRatio || 1, 2)) * prk);
   };
   resize();
   /** Draw the camera c = {az, el (degrees), d, tx, ty, tz, sy} into the page's 3D window. */
-  const frame = (c, guides) => st.frame({...c, az: c.az * D2R, el: c.el * D2R, sx: SHIFT[0], sy: SHIFT[1] - 24 + (c.sy ?? 0)}, {guides});
+  const frame = (c, guides) => st.frame({...c, d: c.d * L.k, az: c.az * D2R, el: c.el * D2R, sx: L.sx, sy: L.sy + (c.sy ?? 0) * L.f}, {guides});
   return {app, w, st, holder, C, A, ui, labels, resize, frame, HERO};
 }
 
